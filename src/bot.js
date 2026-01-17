@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { TOKEN, DB_URL } = process.env;
+const { TOKEN, DB_URL, RIOT_API_KEY } = process.env;
 const { Client, Collection } = require('discord.js');
 const { connect } = require("mongoose")
 const { readdirSync } = require("fs");
@@ -10,7 +10,7 @@ client.commands = new Collection();
 client.buttons = new Collection();
 client.selectMenus = new Collection();
 client.modals = new Collection();
-client.manager = new RiotProfileManager("RGAPI-873368a6-52d7-4ecb-9f67-4829aacece10", "europe");
+client.manager = new RiotProfileManager(RIOT_API_KEY, "europe");
 client.configs = new Collection();
 client.commandArray = []
 
