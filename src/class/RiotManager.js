@@ -17,7 +17,7 @@ class RiotProfileManager {
     this.accountUrl = `https://${region}.api.riotgames.com`;
     this.summonerUrl = `https://${this.platform}.api.riotgames.com`;
   }
-  
+
   /**
    * Enregistre un nouveau joueur - /register [RiotID]
    */
@@ -41,8 +41,10 @@ class RiotProfileManager {
       // Calculer le coût et détecter le rôle
       const pointValue = this.calculatePointValue(rankedData.tier);
       const preferredRole = await this.detectPreferredRole(riotData.puuid);
+      
+      // Calculer le championPool et KDA
+      const { championPool, kdaAverage } = await this.calculateChampionPoolAndKDA(riotData.puuid);
 
-      // Créer le joueur
       const newPlayer = new RiotProfileManager.model({
         discordId,
         riotId: `${gameName}#${tagLine}`,
@@ -61,8 +63,9 @@ class RiotProfileManager {
           losses: rankedData.losses || 0,
           gamesPlayed: (rankedData.wins || 0) + (rankedData.losses || 0),
           winrate: this.calculateWinrate(rankedData.wins, rankedData.losses),
-          kdaAverage: 0
-        }
+          kdaAverage: kdaAverage
+        },
+        championPool: championPool
       });
 
       await newPlayer.save();
@@ -78,7 +81,7 @@ class RiotProfileManager {
 
   /**
    * Récupère la carte d'identité complète d'un joueur
-   * Retourne: Rang, Coût, Poste préféré, KDA moyen, Winrate, Casier judiciaire
+   * Retourne: Rang, Coût, Poste préféré, KDA moyen, Winrate, Casier judiciaire, Champion Pool
    */
   async getPlayerProfile(discordId) {
     const player = await RiotProfileManager.model.findOne({ discordId });
@@ -94,7 +97,7 @@ class RiotProfileManager {
       tier: player.tier,
       rank: player.rank,
       leaguePoints: player.leaguePoints,
-      fullRank: `${player.tier} ${player.rank}`, // Ex: "GOLD II"
+      fullRank: `${player.tier} ${player.rank}`,
       
       // Coût (système de points)
       pointValue: player.pointValue,
@@ -111,6 +114,9 @@ class RiotProfileManager {
         losses: player.stats.losses
       },
       
+      // Champion Pool (Top 5)
+      championPool: player.championPool,
+      
       // Casier judiciaire (Avertissements)
       judiciary: {
         warnings: player.judiciary.warnings,
@@ -121,9 +127,8 @@ class RiotProfileManager {
       
       // Disponibilité
       availability: player.availability,
-      
-      // Statut capitaine
-      isCaptain: player.isCaptain
+
+      mvpCount: player.mvpCount
     };
   }
 
@@ -172,7 +177,7 @@ class RiotProfileManager {
   async getMarket() {
     const players = await RiotProfileManager.model.find({ 
       availability: 'AVAILABLE' 
-    }).select('discordId gameName tier rank pointValue preferredRole stats.winrate stats.kdaAverage');
+    }).select('discordId gameName tier rank pointValue preferredRole stats.winrate stats.kdaAverage championPool');
 
     // Grouper par rôle
     const market = {
@@ -195,7 +200,8 @@ class RiotProfileManager {
         pointValue: player.pointValue,
         preferredRole: player.preferredRole,
         winrate: player.stats.winrate,
-        kdaAverage: player.stats.kdaAverage
+        kdaAverage: player.stats.kdaAverage,
+        topChampions: player.championPool.slice(0, 3).map(c => c.championName)
       });
     });
 
@@ -221,31 +227,7 @@ class RiotProfileManager {
       availability: 'AVAILABLE',
       preferredRole: role 
     })
-    .select('discordId gameName tier rank pointValue preferredRole stats.winrate stats.kdaAverage')
-    .sort({ pointValue: -1 }); // Tri par prix décroissant
-
-    return players.map(p => ({
-      discordId: p.discordId,
-      gameName: p.gameName,
-      tier: p.tier,
-      rank: p.rank,
-      fullRank: `${p.tier} ${p.rank}`,
-      pointValue: p.pointValue,
-      preferredRole: p.preferredRole,
-      winrate: p.stats.winrate,
-      kdaAverage: p.stats.kdaAverage
-    }));
-  }
-
-  /**
-   * Récupère les joueurs par fourchette de prix
-   */
-  async getPlayersByPointRange(minPoints, maxPoints) {
-    const players = await RiotProfileManager.model.find({
-      availability: 'AVAILABLE',
-      pointValue: { $gte: minPoints, $lte: maxPoints }
-    })
-    .select('discordId gameName tier rank pointValue preferredRole stats.winrate stats.kdaAverage')
+    .select('discordId gameName tier rank pointValue preferredRole stats.winrate stats.kdaAverage championPool')
     .sort({ pointValue: -1 });
 
     return players.map(p => ({
@@ -257,39 +239,34 @@ class RiotProfileManager {
       pointValue: p.pointValue,
       preferredRole: p.preferredRole,
       winrate: p.stats.winrate,
-      kdaAverage: p.stats.kdaAverage
+      kdaAverage: p.stats.kdaAverage,
+      topChampions: p.championPool.slice(0, 3).map(c => c.championName)
     }));
   }
 
-  // ==================== CAPITAINE ====================
-
   /**
-   * Définir un joueur comme capitaine
+   * Récupère les joueurs par fourchette de prix
    */
-  async setCaptain(discordId, isCaptain = true) {
-    const player = await RiotProfileManager.model.findOneAndUpdate(
-      { discordId },
-      { isCaptain },
-      { new: true }
-    );
+  async getPlayersByPointRange(minPoints, maxPoints) {
+    const players = await RiotProfileManager.model.find({
+      availability: 'AVAILABLE',
+      pointValue: { $gte: minPoints, $lte: maxPoints }
+    })
+    .select('discordId gameName tier rank pointValue preferredRole stats.winrate stats.kdaAverage championPool')
+    .sort({ pointValue: -1 });
 
-    if (!player) throw new Error('Joueur non trouvé');
-
-    return {
-      discordId: player.discordId,
-      gameName: player.gameName,
-      isCaptain: player.isCaptain
-    };
-  }
-
-  /**
-   * Vérifier si un joueur est capitaine
-   */
-  async isCaptain(discordId) {
-    const player = await RiotProfileManager.model.findOne({ discordId });
-    if (!player) throw new Error('Joueur non trouvé');
-    
-    return player.isCaptain;
+    return players.map(p => ({
+      discordId: p.discordId,
+      gameName: p.gameName,
+      tier: p.tier,
+      rank: p.rank,
+      fullRank: `${p.tier} ${p.rank}`,
+      pointValue: p.pointValue,
+      preferredRole: p.preferredRole,
+      winrate: p.stats.winrate,
+      kdaAverage: p.stats.kdaAverage,
+      topChampions: p.championPool.slice(0, 3).map(c => c.championName)
+    }));
   }
 
   // ==================== CASIER JUDICIAIRE ====================
@@ -331,12 +308,29 @@ class RiotProfileManager {
     };
   }
 
-  // ==================== MISE À JOUR ====================
+  /**
+   * Attribue un MVP à un joueur
+   */
+  async awardMVP(discordId) {
+    const player = await RiotProfileManager.model.findOneAndUpdate(
+      { discordId },
+      { $inc: { mvpCount: 1 } },
+      { new: true }
+    );
+
+    if (!player) throw new Error('Joueur non trouvé');
+
+    return {
+      discordId: player.discordId,
+      gameName: player.gameName,
+      mvpCount: player.mvpCount
+    };
+  }
 
   /**
-   * Met à jour le rang et les stats d'un joueur
+   * Met à jour le rang, stats et champion pool d'un joueur
    */
-  async updatePlayerRank(discordId) {
+  async updatePlayerData(discordId) {
     try {
       const player = await RiotProfileManager.model.findOne({ discordId });
       if (!player) throw new Error('Joueur non trouvé');
@@ -344,6 +338,7 @@ class RiotProfileManager {
       const summonerData = await this.fetchSummonerByPuuid(player.puuid);
       const rankedData = await this.fetchRankedStats(summonerData.puuid);
 
+      // Mettre à jour le rang
       player.tier = rankedData.tier || 'UNRANKED';
       player.rank = rankedData.rank || '';
       player.leaguePoints = rankedData.leaguePoints || 0;
@@ -352,6 +347,12 @@ class RiotProfileManager {
       player.stats.losses = rankedData.losses || 0;
       player.stats.gamesPlayed = (rankedData.wins || 0) + (rankedData.losses || 0);
       player.stats.winrate = this.calculateWinrate(rankedData.wins, rankedData.losses);
+
+      // Mettre à jour le rôle préféré et champion pool
+      player.preferredRole = await this.detectPreferredRole(player.puuid);
+      const { championPool, kdaAverage } = await this.calculateChampionPoolAndKDA(player.puuid);
+      player.championPool = championPool;
+      player.stats.kdaAverage = kdaAverage;
 
       await player.save();
       return player;
@@ -362,18 +363,90 @@ class RiotProfileManager {
     }
   }
 
-  /**
-   * Met à jour le KDA moyen d'un joueur
-   */
-  async updatePlayerKDA(discordId, kda) {
-    const player = await RiotProfileManager.model.findOneAndUpdate(
-      { discordId },
-      { 'stats.kdaAverage': kda },
-      { new: true }
-    );
+  // ==================== CALCUL CHAMPION POOL & KDA ====================
 
-    if (!player) throw new Error('Joueur non trouvé');
-    return player;
+  /**
+   * Calcule le champion pool (top 3) et le KDA moyen à partir des matchs récents
+   */
+  async calculateChampionPoolAndKDA(puuid, matchCount = 20) {
+    try {
+      const matchIds = await this.fetchMatchHistory(puuid, matchCount);
+      const championStats = {};
+      let totalKills = 0, totalDeaths = 0, totalAssists = 0;
+      let validMatches = 0;
+
+      for (const matchId of matchIds) {
+        try {
+          const match = await this.fetchMatchDetails(matchId);
+          const participant = match.info.participants.find(p => p.puuid === puuid);
+
+          if (!participant) continue;
+
+          // Comptabiliser les stats pour le KDA
+          totalKills += participant.kills;
+          totalDeaths += participant.deaths;
+          totalAssists += participant.assists;
+          validMatches++;
+
+          // Champion Pool
+          const champId = participant.championId;
+          const champName = participant.championName;
+          const kda = participant.deaths === 0 
+            ? participant.kills + participant.assists 
+            : (participant.kills + participant.assists) / participant.deaths;
+
+          if (!championStats[champId]) {
+            championStats[champId] = {
+              championName: champName,
+              championId: champId,
+              gamesPlayed: 0,
+              wins: 0,
+              losses: 0,
+              totalKDA: 0
+            };
+          }
+
+          championStats[champId].gamesPlayed++;
+          if (participant.win) {
+            championStats[champId].wins++;
+          } else {
+            championStats[champId].losses++;
+          }
+          championStats[champId].totalKDA += kda;
+
+          await this.sleep(100);
+        } catch (error) {
+          console.error(`Erreur pour le match ${matchId}:`, error.message);
+        }
+      }
+
+      // Calculer le KDA moyen
+      const kdaAverage = validMatches > 0
+        ? totalDeaths === 0
+          ? totalKills + totalAssists
+          : parseFloat(((totalKills + totalAssists) / totalDeaths).toFixed(2))
+        : 0;
+
+      // Convertir le champion pool en tableau et calculer les stats
+      const championPool = Object.values(championStats)
+        .map(champ => ({
+          championName: champ.championName,
+          championId: champ.championId,
+          gamesPlayed: champ.gamesPlayed,
+          wins: champ.wins,
+          losses: champ.losses,
+          winrate: parseFloat(((champ.wins / champ.gamesPlayed) * 100).toFixed(1)),
+          averageKDA: parseFloat((champ.totalKDA / champ.gamesPlayed).toFixed(2))
+        }))
+        .sort((a, b) => b.gamesPlayed - a.gamesPlayed)
+        .slice(0, 3);
+
+      return { championPool, kdaAverage };
+
+    } catch (error) {
+      console.error('Erreur lors du calcul du champion pool:', error);
+      return { championPool: [], kdaAverage: 0 };
+    }
   }
 
   // ==================== APPELS API RIOT ====================
@@ -419,7 +492,7 @@ class RiotProfileManager {
     }
   }
 
-  async fetchMatchHistory(puuid, count = 10) {
+  async fetchMatchHistory(puuid, count = 20) {
     try {
       const response = await axios.get(
         `${this.accountUrl}/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=${count}`,
@@ -443,7 +516,7 @@ class RiotProfileManager {
     }
   }
 
-  async detectPreferredRole(puuid, matchCount = 10) {
+  async detectPreferredRole(puuid, matchCount = 20) {
     const matchIds = await this.fetchMatchHistory(puuid, matchCount);
     const roleCount = { TOP: 0, JUNGLE: 0, MID: 0, ADC: 0, SUPPORT: 0 };
 
@@ -473,37 +546,21 @@ class RiotProfileManager {
 
   // ==================== UTILITAIRES ====================
 
-  /**
-   * Calcule la valeur en points selon le rang
-   */
   calculatePointValue(tier) {
     const pointMapping = {
-      'IRON': 8,
-      'BRONZE': 8,
-      'SILVER': 15,
-      'GOLD': 15,
-      'PLATINUM': 25,
-      'EMERALD': 25,
-      'DIAMOND': 35,
-      'MASTER': 50,
-      'GRANDMASTER': 50,
-      'CHALLENGER': 50,
+      'IRON': 8, 'BRONZE': 8, 'SILVER': 15, 'GOLD': 15,
+      'PLATINUM': 25, 'EMERALD': 25, 'DIAMOND': 35,
+      'MASTER': 50, 'GRANDMASTER': 50, 'CHALLENGER': 50,
       'UNRANKED': 8
     };
     return pointMapping[tier] || 8;
   }
 
-  /**
-   * Calcule le winrate
-   */
   calculateWinrate(wins, losses) {
     const total = wins + losses;
     return total > 0 ? Math.round((wins / total) * 100) : 0;
   }
 
-  /**
-   * Pause pour éviter le rate limit
-   */
   sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }

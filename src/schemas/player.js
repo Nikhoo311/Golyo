@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const MatchStatsSchema = require("./matchStats");
 
 const PlayerSchema = new mongoose.Schema({
   // Identifiants Discord
@@ -77,36 +76,7 @@ const PlayerSchema = new mongoose.Schema({
       type: Number,
       default: 0
     },
-    
-    // Statistiques moyennes
-    averageKills: { type: Number, default: 0 },
-    averageDeaths: { type: Number, default: 0 },
-    averageAssists: { type: Number, default: 0 },
-    averageCS: { type: Number, default: 0 },
-    averageVisionScore: { type: Number, default: 0 },
-    averageGold: { type: Number, default: 0 },
-    averageDamage: { type: Number, default: 0 },
-    
-    // Records personnels
-    bestKDA: { type: Number, default: 0 },
-    mostKills: { type: Number, default: 0 },
-    mostCS: { type: Number, default: 0 },
-    longestGame: { type: Number, default: 0 },
-    
-    // Multikills totaux
-    totalDoubleKills: { type: Number, default: 0 },
-    totalTripleKills: { type: Number, default: 0 },
-    totalQuadraKills: { type: Number, default: 0 },
-    totalPentaKills: { type: Number, default: 0 }
   },
-
-  // Historique des matchs (limité aux 50 derniers)
-  matchHistory: {
-    type: [MatchStatsSchema],
-    default: [],
-    validate: [arrayLimit, '{PATH} dépasse la limite de 50 matchs']
-  },
-
   // Champions les plus joués (top 5)
   championPool: [{
     championName: String,
@@ -133,10 +103,7 @@ const PlayerSchema = new mongoose.Schema({
         enum: ['WARNING', 'SUSPENSION', 'FINE']
       },
       reason: String,
-      date: {
-        type: Date,
-        default: Date.now
-      },
+      date: { type: Date, default: Date.now },
       issuedBy: String
     }]
   },
@@ -147,12 +114,6 @@ const PlayerSchema = new mongoose.Schema({
     default: 'AVAILABLE'
   },
   
-  currentTeam: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Team',
-    default: null
-  },
-  
   mvpCount: {
     type: Number,
     default: 0
@@ -161,15 +122,8 @@ const PlayerSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Validation pour limiter l'historique à 50 matchs
-function arrayLimit(val) {
-  return val.length <= 50;
-}
-
 // Index pour optimiser les recherches
 PlayerSchema.index({ tier: 1, pointValue: 1 });
 PlayerSchema.index({ availability: 1 });
-PlayerSchema.index({ currentTeam: 1 });
-PlayerSchema.index({ 'matchHistory.matchId': 1 });
 
 module.exports = mongoose.model('player', PlayerSchema);
