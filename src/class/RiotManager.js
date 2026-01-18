@@ -1,5 +1,6 @@
 const axios = require('axios');
 const player = require('../schemas/player');
+const UserError = require('./ErrorUser');
 
 class RiotProfileManager {
   static model = player;
@@ -25,12 +26,12 @@ class RiotProfileManager {
     try {
       const existingPlayer = await RiotProfileManager.model.findOne({ discordId });
       if (existingPlayer) {
-        throw new Error('Ce compte Discord est déjà enregistré.');
+        throw new UserError('Ce compte Discord est déjà enregistré.');
       }
 
       const [gameName, tagLine] = riotId.split('#');
       if (!gameName || !tagLine) {
-        throw new Error('Format Riot ID invalide. Utilisez: GameName#TAG');
+        throw new UserError('Format Riot ID invalide. Utilisez: GameName#TAG');
       }
 
       // Récupérer les données Riot
@@ -72,6 +73,7 @@ class RiotProfileManager {
       return newPlayer;
 
     } catch (error) {
+      if (error.isUserError) throw error;
       console.error('Erreur lors de l\'enregistrement:', error);
       throw error;
     }
@@ -273,7 +275,7 @@ class RiotProfileManager {
     const validTypes = ['WARNING', 'SUSPENSION', 'FINE'];
     
     if (!validTypes.includes(type)) {
-      throw new Error(`Type de sanction invalide. Utilisez: ${validTypes.join(', ')}`);
+      throw new UserError(`Type de sanction invalide. Utilisez: ${validTypes.join(', ')}`);
     }
 
     const player = await RiotProfileManager.model.findOne({ discordId });
@@ -455,7 +457,7 @@ class RiotProfileManager {
       return response.data;
     } catch (error) {
       if (error.response?.status === 404) {
-        throw new Error('Compte Riot introuvable. Vérifiez le Riot ID.');
+        throw new UserError('Compte Riot introuvable. Vérifiez le Riot ID.');
       }
       throw new Error('Erreur API Riot: ' + error.message);
     }

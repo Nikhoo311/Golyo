@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ContainerBuilder ,ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder ,ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, EmbedBuilder } = require("discord.js");
 const { color } = require("../../../config/config.json");
 
 module.exports = {
@@ -33,12 +33,8 @@ module.exports = {
                 '```\n' +
                 '**Cliquez sur le bouton ci-dessous pour commencer.**'
             )
-            .setFooter({ 
-                text: 'La Ligue • Que l\'honneur guide vos choix',
-                iconURL: interaction.client.user.displayAvatarURL()
-            })
-            .setTimestamp()
-            .setImage("https://cdn.pixabay.com/animation/2025/11/04/01/10/01-10-46-97_512.gif")
+            .setFooter({ text: 'La Ligue • Que l\'honneur guide vos choix', iconURL: interaction.client.user.displayAvatarURL() })
+            .setTimestamp();
 
         const registerButton = new ButtonBuilder()
             .setCustomId('btn_open_register_modal')
