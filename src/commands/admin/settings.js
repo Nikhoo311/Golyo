@@ -11,6 +11,7 @@ module.exports = {
 
     async execute(interaction, client) {
         const { configs } = client;
+        const gamesInConfigs = [...new Set(configs.map(c => c.game))];
 
         const restoreBtn = new ButtonBuilder()
             .setCustomId("btn-restore-config")
@@ -29,11 +30,11 @@ module.exports = {
             .setMaxValues(1)
             .setPlaceholder("Choisir un jeu...")
             .setRequired(true)
-            .setOptions(configs.map(c => {
+            .setOptions(gamesInConfigs.map(gameName => {
                 return new StringSelectMenuOptionBuilder()
-                    .setLabel(c.game)
-                    .setValue(c.game)
-                    .setDescription(`Voir les configurations pour ${c.game}`)
+                    .setLabel(gameName)
+                    .setValue(gameName)
+                    .setDescription(`Voir les configurations pour ${gameName}`)
             }))
         
         const separator = new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Large)

@@ -1,18 +1,60 @@
 const ConfigModel = require("../../../schemas/config");
-const { MessageFlags } = require("discord.js");
+const { TextDisplayBuilder, ContainerBuilder, SeparatorBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, SeparatorSpacingSize, SectionBuilder, ButtonBuilder, ComponentType, ActionRow } = require("discord.js");
 
 module.exports = {
-    data: {
-        name: "creation-config-modal"
-    },
-    async execute(interaction, client) {
-        const configName = interaction.fields.getTextInputValue("config_name");
-        const gameSelected = interaction.fields.getStringSelectValues("select_game_name")[0];
+  data: { name: "creation-config-modal" },
 
-        await ConfigModel.create({
-            name: configName,
-            game: gameSelected
-        })
-        return await interaction.reply({ content: `✅ La configuration \`${configName}\` est crée avec succès !`, flags: [MessageFlags.Ephemeral] })
-    }
-}
+  async execute(interaction, client) {
+    const { configs } = client;
+
+    const configName = interaction.fields.getTextInputValue("config_name");
+    const gameSelected = interaction.fields.getStringSelectValues("select_game_name")[0];
+
+    const oldContainer = interaction.message.components[0];
+    const firstSection = new SectionBuilder()
+        .addTextDisplayComponents(new TextDisplayBuilder({ content: oldContainer.components[0].components[0].content }))
+        .setButtonAccessory(ButtonBuilder.from(oldContainer.components[0].accessory.data));
+    const buttons = oldContainer.components[2] instanceof ActionRow ? oldContainer.components.slice(oldContainer.components.length-4, oldContainer.components.length-2) : oldContainer.components.slice(oldContainer.components.length-2, oldContainer.components.length);
+    
+    const separator = new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Large);
+    const container = new ContainerBuilder()
+        .setAccentColor(oldContainer.data.accent_color)
+        .addSectionComponents(firstSection)
+        .addSeparatorComponents(separator)
+
+    const newConfig = await ConfigModel.create({
+      name: configName,
+      game: gameSelected
+    });
+
+    configs.set(newConfig.name, newConfig);
+
+    const gamesInConfigs = [
+      ...new Set(configs.map(c => c.game).filter(game => typeof game === "string" && game.length > 0))
+    ];
+
+    const selectSettingsGame = new StringSelectMenuBuilder()
+      .setCustomId("select-settings-game")
+      .setPlaceholder("Choisir un jeu...")
+      .setMinValues(1)
+      .setMaxValues(1)
+      .setRequired(true)
+      .setOptions(
+        gamesInConfigs.map(gameName =>
+          new StringSelectMenuOptionBuilder()
+            .setLabel(gameName)
+            .setValue(gameName)
+            .setDescription(`Voir les configurations pour ${gameName}`)
+        )
+      );
+
+    const selectRow = new ActionRowBuilder().addComponents(selectSettingsGame);
+
+    container.addActionRowComponents(selectRow).addSeparatorComponents(separator);
+    container.addTextDisplayComponents(new TextDisplayBuilder({content: buttons[0].data.content}))
+    container.addActionRowComponents(ActionRowBuilder.from(buttons[1]))
+    container.addSeparatorComponents(separator).addTextDisplayComponents(new TextDisplayBuilder({ content: `✅ La configuration \`${configName}\` est créée avec succès !` }));
+    
+    return interaction.update({ components: [container] });
+  }
+};
