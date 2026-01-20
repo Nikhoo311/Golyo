@@ -1,5 +1,5 @@
 const ConfigModel = require("../../../schemas/config");
-const { TextDisplayBuilder, ContainerBuilder, SeparatorBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, SeparatorSpacingSize, SectionBuilder, ButtonBuilder, ComponentType, ActionRow } = require("discord.js");
+const { TextDisplayBuilder, ContainerBuilder, SeparatorBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, SeparatorSpacingSize, SectionBuilder, ButtonBuilder, ComponentType, ActionRow, ButtonComponent } = require("discord.js");
 
 module.exports = {
   data: { name: "creation-config-modal" },
@@ -14,7 +14,8 @@ module.exports = {
     const firstSection = new SectionBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder({ content: oldContainer.components[0].components[0].content }))
         .setButtonAccessory(ButtonBuilder.from(oldContainer.components[0].accessory.data));
-    const buttons = oldContainer.components[2] instanceof ActionRow ? oldContainer.components.slice(oldContainer.components.length-4, oldContainer.components.length-2) : oldContainer.components.slice(oldContainer.components.length-2, oldContainer.components.length);
+    const buttonsIndex = oldContainer.components.findIndex(c => c instanceof ActionRow && c.components.some(comp => comp instanceof ButtonComponent));
+    const buttons = [oldContainer.components[buttonsIndex-1], oldContainer.components[buttonsIndex]];
     
     const separator = new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Large);
     const container = new ContainerBuilder()
