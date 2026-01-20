@@ -78,7 +78,7 @@ module.exports = {
 
     container.addTextDisplayComponents(new TextDisplayBuilder({content: buttons[0].data.content}))
     container.addActionRowComponents(ActionRowBuilder.from(buttons[1]))
-    container.addSeparatorComponents(separator).addTextDisplayComponents(new TextDisplayBuilder({ content: `✅ ${configIds > 1 ? "Les" : "La"} configuration${configIds > 1 ? "s" : ""} ${names.map(n => `\`${n}\``).join(', ')} ${configIds > 1 ? "ont" : "a"} été suppimée${configIds > 1 ? "s" : ""} avec succès !` }));
+    container.addSeparatorComponents(separator).addTextDisplayComponents(new TextDisplayBuilder({ content: `✅ ${configIds.length > 1 ? "Les" : "La"} configuration${configIds.length > 1 ? "s" : ""} ${names.map(n => `\`${n}\``).join(', ')} ${configIds.length > 1 ? "ont" : "a"} été suppimée${configIds.length > 1 ? "s" : ""} avec succès !` }));
     
     return interaction.update({ components: [container] });
   }

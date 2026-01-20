@@ -16,6 +16,8 @@ module.exports = {
         const textInput = new TextInputBuilder()
             .setCustomId("config_name")
             .setRequired(true)
+            .setMinLength(1)
+            .setMaxLength(40)
             .setStyle(TextInputStyle.Short);
 
         const label = new LabelBuilder()
