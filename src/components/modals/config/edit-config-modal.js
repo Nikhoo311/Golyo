@@ -48,7 +48,7 @@ module.exports = {
             .addTextDisplayComponents(new TextDisplayBuilder({ content: buttons[0].data.content }))
             .addActionRowComponents(ActionRowBuilder.from(buttons[1]));
         
-        if (currentConfig.channels.some(({ active, alwaysActive }) => active && !alwaysActive)) {
+        if (currentConfig.channels.filter(ch => !ch.alwaysActive).length > 0) {
             containerWithChannels.addSeparatorComponents(separator);
             containerWithChannels.addActionRowComponents([ActionRowBuilder.from(oldContainer1.components[7]), ActionRowBuilder.from(oldContainer1.components[8])]);
         }
