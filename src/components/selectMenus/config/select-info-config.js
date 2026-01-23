@@ -36,7 +36,13 @@ module.exports = {
             .setLabel("Créer un salon")
             .setEmoji("<:channel:1462295158388429017>")
             .setStyle(ButtonStyle.Secondary);
-        
+
+        const saveBtn = new ButtonBuilder()
+            .setCustomId("save-update-config")
+            .setLabel("Enregistrer")
+            .setEmoji("💾")
+            .setStyle(ButtonStyle.Success)
+
         const supprChannelBtn = new ButtonBuilder()
             .setCustomId("btn-suppr-channel")
             .setLabel("Supprimer un salon")
@@ -62,7 +68,7 @@ module.exports = {
             .addTextDisplayComponents(channelsTextDisplay)
             .addSeparatorComponents(separator)
             .addTextDisplayComponents(new TextDisplayBuilder({ content: `**Modifier** ici le nom et le jeu de la configuration, et administrez les salons associés (**création** et **suppression**).` }).setId(1000))
-            .addActionRowComponents(new ActionRowBuilder().setId(1001).addComponents(editConfigBtn, createChannel, supprChannelBtn))
+            .addActionRowComponents(new ActionRowBuilder().setId(1001).addComponents(editConfigBtn, saveBtn, createChannel, supprChannelBtn))
         
         if (currentConfig.channels.some(({ active, alwaysActive }) => active && !alwaysActive)) {
             const modifiableChannels = currentConfig.channels.filter(ch => !ch.alwaysActive);
