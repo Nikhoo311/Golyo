@@ -1,5 +1,5 @@
 const { MessageFlags, SectionBuilder, TextDisplayBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ContainerBuilder, ActionRowBuilder, SeparatorBuilder, SeparatorSpacingSize } = require("discord.js");
-const { color } = require("../../../../config/config.json");
+const { color, owners } = require("../../../../config/config.json");
 const path = require("path");
 const { readFileSync } = require("fs");
 
@@ -34,7 +34,7 @@ module.exports = {
                 .setEmoji({name: "⚙️"})
                 .setLabel("Restaurer")
                 .setStyle(ButtonStyle.Secondary)
-                .setDisabled(!interaction.guild.ownerId.includes(interaction.user.id))
+                .setDisabled(!owners.includes(interaction.user.id))
     
             const section = new SectionBuilder()
                 .addTextDisplayComponents(new TextDisplayBuilder({content: `### Paramètres de ${client.user.username}\nUtilisez le menu ci-dessous pour naviguer entre les différentes paramètres sur les différents jeux disponibles.`}))
