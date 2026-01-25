@@ -10,11 +10,7 @@ class RiotProfileManager extends BaseManager {
     super(RiotProfileManager.model)
     this.apiKey = riotApiKey;
     this.region = region;
-    this.platformRouting = {
-      'europe': 'euw1',
-      'americas': 'na1',
-      'asia': 'kr'
-    };
+    this.platformRouting = { 'europe': 'euw1', 'americas': 'na1', 'asia': 'kr' };
     this.platform = this.platformRouting[region] || 'euw1';
     
     this.accountUrl = `https://${region}.api.riotgames.com`;
@@ -92,7 +88,7 @@ class RiotProfileManager extends BaseManager {
    * Récupère la carte d'identité complète d'un joueur
    * Retourne: Rang, Coût, Poste préféré, KDA moyen, Winrate, Casier judiciaire, Champion Pool
    */
-  async getPlayerProfile(discordId) {
+  getPlayerProfile(discordId) {
     const player = this.cache.get(discordId);
     if (!player) throw new Error('Joueur non trouvé');
 
@@ -142,16 +138,13 @@ class RiotProfileManager extends BaseManager {
    * Met à jour la disponibilité d'un joueur pour les 6 semaines de tournoi
    */
   async setAvailability(discordId, available) {
-    const status = available ? 'AVAILABLE' : 'UNAVAILABLE';
-    
-    const player = await RiotProfileManager.model.findOneAndUpdate(
-      { discordId },
-      { availability: status },
-      { new: true }
-    );
-
+    const player = this.cache.get(discordId);
     if (!player) throw new Error('Joueur non trouvé');
-    this.cache.set(discordId, player);
+
+    const status = available ? 'AVAILABLE' : 'UNAVAILABLE';
+    player.availability = status;
+    
+    await player.save();
 
     return {
       discordId: player.discordId,
@@ -166,7 +159,7 @@ class RiotProfileManager extends BaseManager {
   /**
    * Vérifie si un joueur est disponible
    */
-  async isAvailable(discordId) {
+  isAvailable(discordId) {
     const player = this.cache.get(discordId);
     if (!player) throw new Error('Joueur non trouvé');
     
@@ -179,10 +172,8 @@ class RiotProfileManager extends BaseManager {
    * Affiche la liste des joueurs disponibles pour la Draft
    * Triée par poste et par prix
    */
-  async getMarket() {
-    const players = await RiotProfileManager.model.find({ 
-      availability: 'AVAILABLE' 
-    }).select('discordId gameName tier rank pointValue preferredRole stats.winrate stats.kdaAverage championPool');
+  getMarket() {
+    const players = this.cache.filter(player => player.availability === 'AVAILABLE');
 
     // Grouper par rôle
     const market = {
@@ -221,19 +212,16 @@ class RiotProfileManager extends BaseManager {
   /**
    * Récupère les joueurs disponibles par rôle spécifique
    */
-  async getPlayersByRole(role) {
+  getPlayersByRole(role) {
     const validRoles = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT', 'FILL'];
     
     if (!validRoles.includes(role)) {
       throw new Error(`Rôle invalide. Utilisez: ${validRoles.join(', ')}`);
     }
 
-    const players = await RiotProfileManager.model.find({ 
-      availability: 'AVAILABLE',
-      preferredRole: role 
-    })
-    .select('discordId gameName tier rank pointValue preferredRole stats.winrate stats.kdaAverage championPool')
-    .sort({ pointValue: -1 });
+    const players = this.cache
+      .filter(p => p.availability === 'AVAILABLE' && p.preferredRole === role)
+      .sort((a, b) => b.pointValue - a.pointValue);
 
     return players.map(p => ({
       discordId: p.discordId,
@@ -252,13 +240,14 @@ class RiotProfileManager extends BaseManager {
   /**
    * Récupère les joueurs par fourchette de prix
    */
-  async getPlayersByPointRange(minPoints, maxPoints) {
-    const players = await RiotProfileManager.model.find({
-      availability: 'AVAILABLE',
-      pointValue: { $gte: minPoints, $lte: maxPoints }
-    })
-    .select('discordId gameName tier rank pointValue preferredRole stats.winrate stats.kdaAverage championPool')
-    .sort({ pointValue: -1 });
+  getPlayersByPointRange(minPoints, maxPoints) {
+    const players = this.cache
+      .filter(p => 
+        p.availability === 'AVAILABLE' && 
+        p.pointValue >= minPoints && 
+        p.pointValue <= maxPoints
+      )
+      .sort((a, b) => b.pointValue - a.pointValue);
 
     return players.map(p => ({
       discordId: p.discordId,
@@ -317,13 +306,11 @@ class RiotProfileManager extends BaseManager {
    * Attribue un MVP à un joueur
    */
   async awardMVP(discordId) {
-    const player = await RiotProfileManager.model.findOneAndUpdate(
-      { discordId },
-      { $inc: { mvpCount: 1 } },
-      { new: true }
-    );
-
+    const player = this.cache.get(discordId);
     if (!player) throw new Error('Joueur non trouvé');
+
+    player.mvpCount += 1;
+    await player.save();
 
     return {
       discordId: player.discordId,
@@ -360,7 +347,6 @@ class RiotProfileManager extends BaseManager {
       player.stats.kdaAverage = kdaAverage;
 
       await player.save();
-      this.cache.set(discordId, player);
       return player;
 
     } catch (error) {
