@@ -40,7 +40,7 @@ module.exports = {
 
                     return new StringSelectMenuOptionBuilder()
                         .setLabel(config.name)
-                        .setValue(config.name)
+                        .setValue(config.id)
                         .setDescription(`Crée le ${dayjs(config.createdAt).format("D MMMM YYYY à HH:mm")}`)
                         .setEmoji(game?.emoji ?? "🎮");
                 })
