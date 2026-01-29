@@ -61,6 +61,12 @@ module.exports = {
             .setStyle(ButtonStyle.Secondary)
             .setEmoji("📝")
 
+        const chooseConfigBtn = new ButtonBuilder()
+            .setCustomId("btn-choose-this-config")
+            .setLabel("Choisir")
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji("📌")
+
         const container = new ContainerBuilder()
             .setAccentColor(oldContainer.data.accent_color)
             .addSectionComponents(firstSection)
@@ -68,7 +74,7 @@ module.exports = {
             .addTextDisplayComponents(channelsTextDisplay)
             .addSeparatorComponents(separator)
             .addTextDisplayComponents(new TextDisplayBuilder({ content: `**Modifier** ici le nom et le jeu de la configuration, et administrez les salons associés (**création** et **suppression**).` }).setId(1000))
-            .addActionRowComponents(new ActionRowBuilder().setId(1001).addComponents(editConfigBtn, saveBtn, createChannel, supprChannelBtn))
+            .addActionRowComponents(new ActionRowBuilder().setId(1001).addComponents(chooseConfigBtn, editConfigBtn, saveBtn, createChannel, supprChannelBtn))
         
         if (currentConfig.channels.filter(ch => !ch.alwaysActive).length > 0) {
             const modifiableChannels = currentConfig.channels.filter(ch => !ch.alwaysActive);

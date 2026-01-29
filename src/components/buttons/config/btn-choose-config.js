@@ -1,5 +1,5 @@
 const { LabelBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ModalBuilder, MessageFlags } = require("discord.js");
-const { readFileSync } = require("fs");
+const { readFileSync, writeFileSync } = require("fs");
 const path = require("path");
 
 
@@ -15,10 +15,25 @@ dayjs.extend(timezone);
 module.exports = {
     data: {
         name: "btn-choose-config",
+        multi: "btn-choose-this-config"
     },
 
     async execute(interaction, client) {
         const { configs } = client;
+        if (interaction.customId === "btn-choose-this-config") {
+            const id = interaction.message.components[0].data.content.split("-# ")[1];
+            const currentConfig = client.configs.get(id);
+
+            try {
+                const data = { configId: id };
+                writeFileSync(path.join(__dirname, "../../../../config/chosen-config.json"), JSON.stringify(data, null, 4), "utf-8");
+            } catch (error) {
+                console.log(error);
+                return await interaction.reply({ content: "❌ Une erreur est arrivé lors du choix de la config dans le fichier.", flags: [MessageFlags.Ephemeral] });
+            }
+            return interaction.reply({ content: `✅ La configuration \`${currentConfig.name}\` est choisi pour la création des saisons !`, flags: [MessageFlags.Ephemeral] });
+        }
+
         if (configs.size >= 25) {
             return await interaction.reply({ content: "❌ Ce bouton ne permet pas de choisir une configuration car je dispose +25 de configurations.\n\nPour sélectionner une configuration précise, rendez-vous sur la fiche détaillée d'une configuration de saison et utilisez le bouton prévu à cet effet.", flags: [MessageFlags.Ephemeral] });
         }
